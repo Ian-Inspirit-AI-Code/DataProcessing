@@ -3,8 +3,12 @@ import csv
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
-import matplotlib.pyplot as plt
-import numpy as np
+# import matplotlib.pyplot as plt
+# import numpy as np
+
+import sys
+sys.path.append('C:\\Users\\ianch\\PycharmProjects\\InspiritAI\\Regression')
+from Graph import Graph, Point
 
 
 def removeCommas(string):
@@ -75,19 +79,15 @@ def main():
 
     earthquake, tsunami = readCSV("japan_tsunami_data.csv")
 
-    plt.title("Earthquake magnitudes vs Tsunami height in Japan since 1498")
-    plt.xlabel("Earthquake Magnitude")
-    plt.ylabel("Tsunami Wave Height")
+    points = list(zip(earthquake, tsunami))
 
-    plt.scatter(earthquake, tsunami)
+    graph = Graph(xMin=6, xMax=10, yMin=0, yMax=85, xLabelInterval=1, yLabelInterval=17)
+    points = [Point(*point) for point in points]
+    for point in points:
+        graph.plot(point)
 
-    a = np.polyfit(earthquake, tsunami, 1)
-    slope, intercept = a[0], a[1]
-    bestFitLineY = [slope * x + intercept for x in earthquake]
-    plt.plot(earthquake, bestFitLineY)
+    graph.display()
 
-    print(list(zip(earthquake, tsunami)))
-    plt.show()
 
 if __name__ == "__main__":
     main()
