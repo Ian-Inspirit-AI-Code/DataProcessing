@@ -1,6 +1,14 @@
 import csv
+
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def removeCommas(string):
+    return string.replace(",", " ")
 
 
 def websiteToCSV(url, csvName, tableClassName):
@@ -22,20 +30,64 @@ def websiteToCSV(url, csvName, tableClassName):
 
             cell = row.findAll(['td', 'th'])
 
-            cell_text = [element.get_text() for element in cell]
+            cell_text = [removeCommas(element.get_text()) for element in cell]
 
             writer.writerow(cell_text)
 
 
+def readCSV(filename):
+    earthquakeMagnitudes = []
+    tsunamiWaveHeight = []
+
+    with open(filename, "r") as f:
+
+        for line in f:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            line = line.split(",")[:-1]
+
+            (date, cause, tidalWave, fatalities) = tuple(line)
+
+            # removing units from tidal wave
+            tidalWave = tidalWave[:-2]
+
+            cause = cause.split(" ")
+            if "Earthquake" in cause:
+                index = cause.index("magnitude")
+                magnitude = cause[index + 2][:-1]
+                earthquakeMagnitudes.append(float(magnitude))
+                tsunamiWaveHeight.append(float(tidalWave))
+
+    return earthquakeMagnitudes, tsunamiWaveHeight
+
+
 def main():
-    websiteToCSV(url='https://www.worlddata.info/asia/japan/earthquakes.php',
-                 csvName="japan_earthquake_data.csv",
-                 tableClassName="std100 hover")
+    # websiteToCSV(url='https://www.worlddata.info/asia/japan/earthquakes.php',
+    #              csvName="japan_earthquake_data.csv",
+    #              tableClassName="std100 hover")
+    #
+    # websiteToCSV(url='https://www.worlddata.info/asia/japan/tsunamis.php',
+    #              csvName="japan_tsunami_data.csv",
+    #              tableClassName="std100 hover")
 
-    websiteToCSV(url='https://www.worlddata.info/asia/japan/tsunamis.php',
-                 csvName="japan_tsunami_data.csv",
-                 tableClassName="std100 hover")
+    earthquake, tsunami = readCSV("japan_tsunami_data.csv")
 
+    plt.title("Earthquake magnitudes vs Tsunami height in Japan since 1498")
+    plt.xlabel("Earthquake Magnitude")
+    plt.ylabel("Tsunami Wave Height")
+
+    plt.scatter(earthquake, tsunami)
+
+    a = np.polyfit(earthquake, tsunami, 1)
+    slope, intercept = a[0], a[1]
+    bestFitLineY = [slope * x + intercept for x in earthquake]
+    plt.plot(earthquake, bestFitLineY)
+
+    print(list(zip(earthquake, tsunami)))
+    plt.show()
 
 if __name__ == "__main__":
     main()
