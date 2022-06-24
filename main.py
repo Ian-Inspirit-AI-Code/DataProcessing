@@ -24,6 +24,7 @@ def addColumnsToCSV(csvFile, columns):
 
 
 def train(allColumns, xColumns, yColumn, trainingAmount):
+    print(f"Training with {xColumns}. Using {(trainingAmount * 100)} percent of the data as training.")
     file = "TsunamiData"
     csv = file + ".csv"
     tsv = file + ".tsv"
@@ -68,15 +69,28 @@ def train(allColumns, xColumns, yColumn, trainingAmount):
     # r^2
     linregress(pred, y)
     _, _, r, _, std_err = linregress(pred, y)
-    print(f"r^2 value is {r ** 2}")
-    print(f"standard error between prediction and actual is {std_err}")
+    print(f"r^2 value is {r ** 2}, standard error between prediction and actual is {std_err}")
 
 
 def main():
-    train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
-          ["magnitude_earthquake", "latitude", "longitude"],
-          "water_height",
-          0.9)
+    trainingPercentage = 0.5
+
+    while trainingPercentage < 0.99:
+        train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
+              ["magnitude_earthquake", "latitude", "longitude"],
+              "water_height",
+              trainingPercentage)
+
+        print()
+
+        train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
+              ["magnitude_earthquake"],
+              "water_height",
+              trainingPercentage)
+
+        print("\n\n")
+
+        trainingPercentage += 0.05
 
 
 if __name__ == "__main__":
