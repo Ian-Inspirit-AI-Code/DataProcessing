@@ -3,9 +3,6 @@ import csv
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
-# import matplotlib.pyplot as plt
-# import numpy as np
-
 import sys
 sys.path.append('C:\\Users\\ianch\\PycharmProjects\\InspiritAI\\Regression')
 from Graph import Graph, Point
@@ -56,7 +53,7 @@ def readCSV(filename):
             (date, cause, tidalWave, fatalities) = tuple(line)
 
             # removing units from tidal wave
-            tidalWave = tidalWave[:-2]
+            tidalWave = tidalWave.split(" ")[0]
 
             cause = cause.split(" ")
             if "Earthquake" in cause:
