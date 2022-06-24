@@ -1,89 +1,82 @@
-import csv
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
-
-import sys
-sys.path.append('C:\\Users\\ianch\\PycharmProjects\\InspiritAI\\Regression')
-from Graph import Graph, Point
+from sklearn import linear_model
+from scipy.stats import linregress
 
 
-def removeCommas(string):
-    return string.replace(",", " ")
+def tsvToCsv(tsvFile, csvFile):
+    csv_table = pd.read_table(tsvFile, sep='\t')
+    csv_table.to_csv(csvFile, index=False)
 
 
-def websiteToCSV(url, csvName, tableClassName):
-    html = urlopen(url)
-    bs = BeautifulSoup(html, 'html.parser')
+def addColumnsToCSV(csvFile, columns):
+    csvColumns = str(columns).replace("[", "").replace("]", "").replace("'", "").replace(" ", '')
 
-    table = bs.findAll('table', tableClassName)
-    table = table[0]
-    rows = table.findAll('tr')
+    with open(csvFile, 'r') as f:
+        content = f.read()
 
-    with open(csvName, 'w') as f:
-        writer = csv.writer(f)
+    new = csvColumns + "\n" + content
 
-        count = 0
-        for row in rows:
-            if count == 0:
-                count += 1
-                continue
-
-            cell = row.findAll(['td', 'th'])
-
-            cell_text = [removeCommas(element.get_text()) for element in cell]
-
-            writer.writerow(cell_text)
+    with open(csvFile, 'w') as f:
+        f.write(new)
 
 
-def readCSV(filename):
-    earthquakeMagnitudes = []
-    tsunamiWaveHeight = []
+def train(allColumns, xColumns, yColumn, trainingAmount):
+    file = "TsunamiData"
+    csv = file + ".csv"
+    tsv = file + ".tsv"
 
-    with open(filename, "r") as f:
+    columns = allColumns
 
-        for line in f:
-            line = line.strip()
+    tsvToCsv(tsv, csv)
+    addColumnsToCSV(csv, columns)
 
-            if not line:
-                continue
+    # reading data
+    tsunami_data = pd.read_csv(csv)
 
-            line = line.split(",")[:-1]
+    # setting na
+    tsunami_data = tsunami_data.fillna(value=1)
 
-            (date, cause, tidalWave, fatalities) = tuple(line)
+    # splitting training and testing
+    length = tsunami_data.count()[0]
+    trainingPercentage = trainingAmount
+    trainingAmount = int(length * trainingPercentage)
+    testingAmount = length - trainingAmount
 
-            # removing units from tidal wave
-            tidalWave = tidalWave.split(" ")[0]
+    training = tsunami_data.head(trainingAmount)
+    testing = tsunami_data.tail(testingAmount)
 
-            cause = cause.split(" ")
-            if "Earthquake" in cause:
-                index = cause.index("magnitude")
-                magnitude = cause[index + 2][:-1]
-                earthquakeMagnitudes.append(float(magnitude))
-                tsunamiWaveHeight.append(float(tidalWave))
+    # training model with training data
 
-    return earthquakeMagnitudes, tsunamiWaveHeight
+    # splitting x and y
+    x = training[xColumns]
+    y = training[yColumn]
+
+    # training model
+    model = linear_model.LinearRegression()
+    model.fit(x, y)
+
+    # splitting x and y for testing
+    x = testing[xColumns]
+    y = testing[yColumn]
+
+    # testing predictions
+    pred = model.predict(x)
+
+    # r^2
+    linregress(pred, y)
+    _, _, r, _, std_err = linregress(pred, y)
+    print(f"r^2 value is {r ** 2}")
+    print(f"standard error between prediction and actual is {std_err}")
 
 
 def main():
-    # websiteToCSV(url='https://www.worlddata.info/asia/japan/earthquakes.php',
-    #              csvName="japan_earthquake_data.csv",
-    #              tableClassName="std100 hover")
-    #
-    # websiteToCSV(url='https://www.worlddata.info/asia/japan/tsunamis.php',
-    #              csvName="japan_tsunami_data.csv",
-    #              tableClassName="std100 hover")
-
-    earthquake, tsunami = readCSV("japan_tsunami_data.csv")
-
-    points = list(zip(earthquake, tsunami))
-
-    graph = Graph(xMin=6, xMax=10, yMin=0, yMax=85, xLabelInterval=1, yLabelInterval=17)
-    points = [Point(*point) for point in points]
-    for point in points:
-        graph.plot(point)
-
-    graph.display()
+    train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
+          ["magnitude_earthquake", "latitude", "longitude"],
+          "water_height",
+          0.9)
 
 
 if __name__ == "__main__":
