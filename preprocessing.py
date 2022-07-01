@@ -34,6 +34,12 @@ def change_column_name(data: pd.DataFrame, old_column_name: str, new_column_name
     return data
 
 
+def change_column_names(data: pd.DataFrame, old_new_names: dict[str, str]) -> pd.DataFrame:
+    """ Changes a dictionary of old columnes to new ones"""
+    data = data.rename(columns=old_new_names)
+    return data
+
+
 def filter_column(data: pd.DataFrame, column: str, filter_key: Callable[[Any], bool]) -> pd.DataFrame:
     """ Filters the dataframe by a column and a key. Returns the changed dataframe"""
     mask = data[column].apply(filter_key)
@@ -81,7 +87,8 @@ def process_tsv_into_csv(*,
                          minimum_date: datetime = pd.Timestamp.min,
                          maximum_date: datetime = pd.Timestamp.max,
                          filter_keys: list[Callable[[Any], bool]] = None,
-                         columns_to_filter: list[str] = None) -> None:
+                         columns_to_filter: list[str] = None,
+                         name_replace: dict[str, str] = None) -> None:
     """ Reads in a tsv file and processes it"""
 
     # creating the dataframe
@@ -91,6 +98,9 @@ def process_tsv_into_csv(*,
     # cannot set this in the function signature because lists are mutable
     if wanted_columns is None:
         wanted_columns = []
+
+    if name_replace is not None:
+        dataframe = change_column_names(dataframe, name_replace)
 
     # this is reformatting the data to use month/day rather than mo/dy
     if add_datetime:
@@ -129,11 +139,14 @@ def process_tsv_into_csv(*,
     dataframe.to_csv(csv_filename)
 
 
-def process_tsunami():
+def process_tsunami() -> None:
     tsv_filename = "unprocessed_tsunami_data.tsv"
     csv_filename = "processed_tsunami_data.csv"
 
-    wanted_columns = ["tsunami cause code", "earthquake magnitude", "country", "latitude", "longitude"]
+    wanted_columns = ["tsunami cause code", "earthquake magnitude", "country", "latitude", "longitude",
+                      "water height", "tsunami magnitude"]
+
+    name_replace = {"maximum water height (m)": "water height", "tsunami magnitude (iida)": "tsunami magnitude"}
 
     def filter_validity(validity: int) -> bool:
         # 4 -> definite tsunami, 3 -> probable
@@ -147,10 +160,11 @@ def process_tsunami():
                          wanted_columns=wanted_columns,
                          add_datetime=True,
                          filter_keys=[filter_cause, filter_validity],
-                         columns_to_filter=["tsunami cause code", "tsunami event validity"])
+                         columns_to_filter=["tsunami cause code", "tsunami event validity"],
+                         name_replace=name_replace)
 
 
-def process_earthquake():
+def process_earthquake() -> None:
     tsv_filename = "unprocessed_earthquake_data.tsv"
     csv_filename = "processed_earthquake_data.csv"
 
