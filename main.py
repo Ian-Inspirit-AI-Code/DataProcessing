@@ -1,96 +1,9 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-from sklearn import linear_model
-from scipy.stats import linregress
-
-
-def tsvToCsv(tsvFile, csvFile):
-    csv_table = pd.read_table(tsvFile, sep='\t')
-    csv_table.to_csv(csvFile, index=False)
-
-
-def addColumnsToCSV(csvFile, columns):
-    csvColumns = str(columns).replace("[", "").replace("]", "").replace("'", "").replace(" ", '')
-
-    with open(csvFile, 'r') as f:
-        content = f.read()
-
-    new = csvColumns + "\n" + content
-
-    with open(csvFile, 'w') as f:
-        f.write(new)
-
-
-def train(allColumns, xColumns, yColumn, trainingAmount):
-    print(f"Training with {xColumns}. Using {(trainingAmount * 100)} percent of the data as training.")
-    file = "TsunamiData"
-    csv = file + ".csv"
-    tsv = file + ".tsv"
-
-    columns = allColumns
-
-    tsvToCsv(tsv, csv)
-    addColumnsToCSV(csv, columns)
-
-    # reading data
-    tsunami_data = pd.read_csv(csv)
-
-    # setting na
-    tsunami_data = tsunami_data.fillna(value=1)
-
-    # splitting training and testing
-    length = tsunami_data.count()[0]
-    trainingPercentage = trainingAmount
-    trainingAmount = int(length * trainingPercentage)
-    testingAmount = length - trainingAmount
-
-    training = tsunami_data.head(trainingAmount)
-    testing = tsunami_data.tail(testingAmount)
-
-    # training model with training data
-
-    # splitting x and y
-    x = training[xColumns]
-    y = training[yColumn]
-
-    # training model
-    model = linear_model.LinearRegression()
-    model.fit(x, y)
-
-    # splitting x and y for testing
-    x = testing[xColumns]
-    y = testing[yColumn]
-
-    # testing predictions
-    pred = model.predict(x)
-
-    # r^2
-    linregress(pred, y)
-    _, _, r, _, std_err = linregress(pred, y)
-    print(f"r^2 value is {r ** 2}, standard error between prediction and actual is {std_err}")
+from preprocessing import *
+from visualization import *
 
 
 def main():
-    trainingPercentage = 0.5
-
-    while trainingPercentage < 0.99:
-        train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
-              ["magnitude_earthquake", "latitude", "longitude"],
-              "water_height",
-              trainingPercentage)
-
-        print()
-
-        train(["year", "month", "day", "magnitude_earthquake", "latitude", "longitude", "water_height"],
-              ["magnitude_earthquake"],
-              "water_height",
-              trainingPercentage)
-
-        print("\n\n")
-
-        trainingPercentage += 0.05
+    pass
 
 
 if __name__ == "__main__":
