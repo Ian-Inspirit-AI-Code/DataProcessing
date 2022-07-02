@@ -1,12 +1,15 @@
-from preprocessing import *
-from visualization import *
+import preprocessing
+import visualization
 
 
 def main():
-    # show("processed_tsunami_data.csv", "earthquake magnitude", ["tsunami magnitude"])
-    # show("processed_tsunami_data.csv", "earthquake magnitude", ["water height"])
-    
-    show("processed_tsunami_data.csv", "earthquake magnitude", ["tsunami magnitude", "water height"])
+    # preprocessing.create_csvs()
+
+    # visualization.show(preprocessing.processed_tsunami, "earthquake magnitude", ["tsunami magnitude"])
+    # visualization.show(preprocessing.processed_tsunami, "earthquake magnitude", ["water height"])
+    # visualization.show(preprocessing.processed_tsunami, "earthquake magnitude", ["tsunami magnitude", "water height"])
+
+    visualization.show(preprocessing.linked, "t tsunami magnitude", ["e intensity"])
 
 
 if __name__ == "__main__":

@@ -3,21 +3,36 @@ import pandas as pd
 
 
 def show(filename: str, x_label: str, y_labels: list[str]) -> None:
+    """ Creates a plot from data read from a csv. Plots a single x axis against 1+ y labels"""
+
+    # reading the dataframe
     data = pd.read_csv(filename)
 
+    # creating a plot
     fig, ax = plt.subplots()
 
+    # plots is later used in the legend
+    plots = []
+
+    # x and y
     x = data[x_label]
-
-    lines = []
-
     for y_label in y_labels:
         y = data[y_label]
-        line = ax.scatter(x, y)
-        lines.append(line)
 
+        # plotting each y against the x
+        plot = ax.scatter(x, y)
+
+        # adding to the list of plots
+        plots.append(plot)
+
+    # setting x label
     plt.xlabel(x_label)
 
-    ax.legend(lines, y_labels)
+    # setting legend
+    ax.legend(plots, y_labels)
 
     plt.show()
+
+
+# when plot earthquakes, can make a hue based on whether caused tsunami or not
+# also try PCA

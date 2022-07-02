@@ -3,7 +3,17 @@ import pandas as pd
 
 from typing import Callable, Any
 
-import datetime
+from datetime import datetime, timedelta
+
+
+# FILENAMES ================================================
+unprocessed_tsunami = "unprocessed_tsunami_data.tsv"
+unprocessed_earthquake = "unprocessed_earthquake_data.tsv"
+
+processed_tsunami = "processed_tsunami_data.csv"
+processed_earthquake = "processed_earthquake_data.csv"
+
+linked = "tsunami_and_earthquake_linked.csv"
 
 
 def tsv_to_dataframe(tsv_filename: str) -> pd.DataFrame:
@@ -17,14 +27,14 @@ def tsv_to_dataframe(tsv_filename: str) -> pd.DataFrame:
         headers[0] = 'null'
 
     # creating a dataframe with the data
-    data = pd.read_table(tsv_filename, sep='\t', header=2)
+    data = pd.read_table(tsv_filename, sep='\t', header=1)
 
-    # trimming headers to match number in datatable
-    headers = headers[:len(data.columns)]
     # setting the column names
-    data.columns = headers
+    data = data.rename(columns={data.columns[i]: headers[i] for i in range(len(data.columns))})
+
     # removing the blank column
     del data['null']
+
     return data
 
 
@@ -139,9 +149,7 @@ def process_tsv_into_csv(*,
     dataframe.to_csv(csv_filename)
 
 
-def process_tsunami() -> None:
-    tsv_filename = "unprocessed_tsunami_data.tsv"
-    csv_filename = "processed_tsunami_data.csv"
+def process_tsunami(tsv_filename: str, csv_filename: str) -> None:
 
     wanted_columns = ["tsunami cause code", "earthquake magnitude", "country", "latitude", "longitude",
                       "water height", "tsunami magnitude"]
@@ -164,17 +172,127 @@ def process_tsunami() -> None:
                          name_replace=name_replace)
 
 
-def process_earthquake() -> None:
-    tsv_filename = "unprocessed_earthquake_data.tsv"
-    csv_filename = "processed_earthquake_data.csv"
+def process_earthquake(tsv_filename: str, csv_filename: str) -> None:
 
-    wanted_columns = ["mag", "mmi int", "location name", "latitude", "longitude"]
+    wanted_columns = ["magnitude", "intensity", "location name", "latitude", "longitude"]
+
+    name_replace = {"mag": "magnitude", "mmi int": "intensity"}
 
     process_tsv_into_csv(tsv_filename=tsv_filename, csv_filename=csv_filename,
                          wanted_columns=wanted_columns,
-                         add_datetime=True)
+                         add_datetime=True,
+                         name_replace=name_replace)
 
 
-if __name__ == "__main__":
-    process_tsunami()
-    process_earthquake()
+def get_earthquake_information_from_tsunami_cause(tsunami_data: pd.DataFrame,
+                                                  earthquake_data: pd.DataFrame,
+                                                  tsunami_iloc: int,
+                                                  *,
+                                                  date_variability: timedelta = timedelta(days=1),
+                                                  latitude_variability: float = 50,
+                                                  longitude_variability: float = 50,
+                                                  magnitude_variability: float = 0.5) -> pd.DataFrame:
+    """ Returns the corresponding earthquake data to a tsunami.
+    Raises a value error if not found or if the following columns are not found:
+        date, latitude, longitude, magnitude (both)
+    """
+
+    # functions used in filtering
+    def close(t_data: str, e_data: str, threshhold: timedelta | float) -> bool:
+
+        try:
+            t_data = np.datetime64(t_data)
+            e_data = np.datetime64(e_data)
+        except ValueError:
+            t_data = float(t_data)
+            e_data = float(e_data)
+
+        return abs(t_data - e_data) < threshhold
+
+    # tsunami information
+    (tsunami_date, tsunami_latitude,
+     tsunami_longitude) = tsunami_data.iloc[tsunami_iloc][["date", "latitude", "longitude"]]
+    earthquake_magnitude_from_tsunami = tsunami_data.iloc[tsunami_iloc]["earthquake magnitude"]
+
+    # lists used in filtering earthquake
+    labels = ["date", "latitude", "longitude", "magnitude"]
+    tsu_data = [tsunami_date, tsunami_latitude, tsunami_longitude, earthquake_magnitude_from_tsunami]
+    variability = [date_variability, latitude_variability, longitude_variability, magnitude_variability]
+
+    # filtering all earthquakes
+    for label, data, var in zip(labels, tsu_data, variability):
+        mask = earthquake_data[label].apply(lambda e_data: close(data, e_data, var))
+        earthquake_data = earthquake_data[mask]
+
+        if earthquake_data.empty:
+            break
+
+    # filter out the closest if multiple
+    if earthquake_data.shape[0] > 1:
+        # summing up the difference in lattitude and longitude
+        distance_score = [(index, abs(lat - tsunami_latitude) + abs(log - tsunami_longitude))
+                          for index, (_, lat, log) in
+                          enumerate(earthquake_data[["latitude", "longitude"]].itertuples())]
+
+        # finding the earthquake that is geographically closest
+        closest = min(distance_score, key=lambda x: x[1])
+        earthquake_data = earthquake_data.iloc[closest[0]]
+
+    return earthquake_data
+
+
+def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: str, linked_filename: str) \
+        -> pd.DataFrame:
+    """ Finds the common earthquakes between the tsunami and earthquake csvs. Writes this to a csv"""
+
+    # reading dataframes
+    tsunami_data = pd.read_csv(tsunami_filename)
+    earthquake_data = pd.read_csv(earthquake_filename)
+
+    # creating the linked dataframe
+    tsunami_and_earthquake = pd.DataFrame()
+
+    # iterate through each tsunami
+    for tsunami_iloc in range(tsunami_data.shape[0]):
+        # finding the dataframe on the earthquake that caused the tsunami
+        earthquake_df = get_earthquake_information_from_tsunami_cause(tsunami_data, earthquake_data, tsunami_iloc)
+
+        # finding the tsunami dataframe
+        # convert from a series into a dataframe
+        tsunami_df = pd.DataFrame(tsunami_data.iloc[tsunami_iloc]).transpose()
+
+        if earthquake_df.empty:
+            continue
+
+        # sometimes this is a series (??)
+        if isinstance(earthquake_df, pd.Series):
+            earthquake_df = pd.DataFrame(earthquake_df).transpose()
+
+        # changing the names (this code is bad)
+        # TODO: refactor
+        earthquake_df = earthquake_df.rename(columns={x: "e " + x for x in earthquake_df.columns})
+        tsunami_df = tsunami_df.rename(columns={x: "t " + x for x in tsunami_df.columns})
+
+        # merging dataframes requires a shared column
+        tsunami_df["shared"] = 'shared'
+        earthquake_df["shared"] = 'shared'
+
+        # merging the dataframes
+        merged = pd.merge(tsunami_df, earthquake_df)
+
+        # adding to the linked dataframe
+        tsunami_and_earthquake = pd.concat([tsunami_and_earthquake, merged])
+
+    # writing to a csv
+    tsunami_and_earthquake.to_csv(linked_filename)
+
+    return tsunami_and_earthquake
+
+
+def create_csvs():
+    """ Creates all the csv files"""
+
+    process_tsunami(unprocessed_tsunami, processed_tsunami)
+    process_earthquake(unprocessed_earthquake, processed_earthquake)
+
+    get_earthquakes_caused_tsunami(processed_earthquake, processed_tsunami, linked)
