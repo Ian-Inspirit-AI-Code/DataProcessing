@@ -174,9 +174,9 @@ def process_tsunami(tsv_filename: str, csv_filename: str) -> None:
 
 def process_earthquake(tsv_filename: str, csv_filename: str) -> None:
 
-    wanted_columns = ["magnitude", "intensity", "location name", "latitude", "longitude"]
+    wanted_columns = ["magnitude", "intensity", "location name", "latitude", "longitude", "focal depth"]
 
-    name_replace = {"mag": "magnitude", "mmi int": "intensity"}
+    name_replace = {"mag": "magnitude", "mmi int": "intensity", "focal depth (km)": "focal depth"}
 
     process_tsv_into_csv(tsv_filename=tsv_filename, csv_filename=csv_filename,
                          wanted_columns=wanted_columns,
@@ -241,9 +241,10 @@ def get_earthquake_information_from_tsunami_cause(tsunami_data: pd.DataFrame,
     return earthquake_data
 
 
-def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: str, linked_filename: str) \
-        -> pd.DataFrame:
-    """ Finds the common earthquakes between the tsunami and earthquake csvs. Writes this to a csv"""
+def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: str, linked_filename: str,
+                                   label_earthquake: bool = True) -> pd.DataFrame:
+    """ Finds the common earthquakes between the tsunami and earthquake csvs. Writes this to a csv.
+    Adds a new column to earthquake data on whether it caused a tsunami if label_earthquake"""
 
     # reading dataframes
     tsunami_data = pd.read_csv(tsunami_filename)
@@ -251,6 +252,9 @@ def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: s
 
     # creating the linked dataframe
     tsunami_and_earthquake = pd.DataFrame()
+
+    # the list of earthquake indices that led to a tsunami
+    caused_tsunami = []
 
     # iterate through each tsunami
     for tsunami_iloc in range(tsunami_data.shape[0]):
@@ -263,6 +267,12 @@ def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: s
 
         if earthquake_df.empty:
             continue
+
+        # adding to caused tsunami
+        index = earthquake_df["Unnamed: 0"]
+        if isinstance(index, pd.Series):
+            index = index.iloc[0]
+        caused_tsunami.append(index)
 
         # sometimes this is a series (??)
         if isinstance(earthquake_df, pd.Series):
@@ -286,6 +296,14 @@ def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: s
     # writing to a csv
     tsunami_and_earthquake.to_csv(linked_filename)
 
+    # add a new column to earthquake
+    if label_earthquake:
+        indices = earthquake_data["Unnamed: 0"]
+        labels = [int(x in caused_tsunami) for x in indices]
+
+        earthquake_data["caused tsunami"] = labels
+        earthquake_data.to_csv(earthquake_filename)
+
     return tsunami_and_earthquake
 
 
@@ -296,3 +314,7 @@ def create_csvs():
     process_earthquake(unprocessed_earthquake, processed_earthquake)
 
     get_earthquakes_caused_tsunami(processed_earthquake, processed_tsunami, linked)
+
+
+if __name__ == "__main__":
+    create_csvs()

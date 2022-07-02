@@ -34,5 +34,14 @@ def show(filename: str, x_label: str, y_labels: list[str]) -> None:
     plt.show()
 
 
-# when plot earthquakes, can make a hue based on whether caused tsunami or not
-# also try PCA
+def plot_with_hue(filename: str, x_label: str, y_label: str, hue_label: str) -> None:
+    import seaborn as sns
+
+    data = pd.read_csv(filename)
+    x = data[x_label]
+    y = data[y_label]
+    hue = data[hue_label]
+
+    plt.figure()
+    sns.scatterplot(x=x, y=y, hue=hue)
+    plt.show()
