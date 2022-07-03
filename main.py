@@ -11,7 +11,11 @@ def main():
 
     # visualization.show(preprocessing.linked, "t tsunami magnitude", ["e intensity"])
 
-    visualization.plot_with_hue(preprocessing.processed_earthquake, "magnitude", "focal depth", "caused tsunami")
+    # visualization.plot_with_hue(preprocessing.processed_earthquake, "magnitude", "focal depth", "caused tsunami")
+
+    visualization.create_pca_plot(preprocessing.processed_earthquake,
+                                  ["magnitude", "focal depth", "intensity", "longitude", "latitude", "caused tsunami"],
+                                  "caused tsunami")
 
 
 if __name__ == "__main__":
