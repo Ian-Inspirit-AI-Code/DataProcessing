@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from itertools import product
+
 # Image qualities ============================
 FILENAME = "WorldMapTwo.jpg"
 IM_HEIGHT, IM_WIDTH, _ = plt.imread(FILENAME).shape
@@ -14,8 +16,8 @@ LAT_PER_GRID = np.pi / NUM_ROWS  # horizontal (radians)
 LONG_PER_PIXEL = LONG_PER_GRID / COLUMN_SIZE
 LAT_PER_PIXEL = LAT_PER_GRID / ROW_SIZE
 
-LAND = np.array([0, 1, 0, 1])  # pure green, 1 alpha
-WATER = np.array([1, 1, 1, 1])  # pure white, 1 alpha
+LAND = np.array([0, 255, 0])  # pure green, 1 alpha
+WATER = np.array([255, 255, 255])  # pure white, 1 alpha
 
 
 def image_to_numpy_array(filename: str) -> np.ndarray:
@@ -43,19 +45,13 @@ def lat_long_to_row_col(lat: float, long: float) -> tuple[int, int]:
 
 def create_uniform_spread(r_num: int, c_num: int) -> np.ndarray:
     """ Returns a uniform distribution of points in an array of shape (r_num * c_num, 2)"""
-    arr = np.zeros((r_num * c_num, 2))
-    index = 0
 
-    # this can probably be written much more concisely using itertools product and map()
-    for r in np.arange(0, IM_HEIGHT - 1, (IM_HEIGHT - 1) / r_num):
-        row = int(r)
-        for c in np.arange(0, IM_WIDTH - 1, (IM_WIDTH - 1) / c_num):
-            col = int(c)
-
-            arr[index] = np.array([row, col])
-            index += 1
-
-    return arr
+    # creates a list of tuples of row/col ranges with product
+    # applies the int function to each element
+    # then converts to a numpy array
+    return np.array(list(map(lambda x: (int(x[0]), int(x[1])),
+                             product(np.arange(0, IM_HEIGHT - 1, (IM_HEIGHT - 1) / r_num),
+                                     np.arange(0, IM_WIDTH - 1, (IM_WIDTH - 1) / c_num)))))
 
 
 def on_edge(row: int, col: int, image: np.ndarray, lat_tolerance: float = 0.3, long_tolerance: float = 0.3) -> bool:
@@ -65,8 +61,7 @@ def on_edge(row: int, col: int, image: np.ndarray, lat_tolerance: float = 0.3, l
     points = [(force_in_range(row + r_diff, 0, IM_HEIGHT - 1), force_in_range(col + c_diff, 0, IM_WIDTH - 1)),
               (force_in_range(row - r_diff, 0, IM_HEIGHT - 1), force_in_range(col - c_diff, 0, IM_WIDTH - 1))]
 
-    white = np.array([255, 255, 255])
-    return np.array_equal(image[points[0]], white) ^ np.array_equal(image[points[1]], white)
+    return np.array_equal(image[points[0]], WATER) ^ np.array_equal(image[points[1]], WATER)
 
 
 def force_in_range(x: int, minimum: int, maximum: int) -> int:
@@ -87,8 +82,22 @@ def find_edgepoints_of_continents(image: np.ndarray, r_num: int = 500, c_num: in
     return all_points_on_edge(distribution, image)
 
 
-def dist_lat_long(lat1: float, long1: float, lat2: float, long2: float) -> float:
-    """ Returns the distance between two lat-long coordinates in KM"""
+def dist_lat_long(lat1: float, long1: float, lat2: float, long2: float, degrees=False) -> float:
+    """ Returns the distance between two lat-long coordinates in KM
+
+    Credits for this function go to geeksforgeeks and Aarti Rathi
+        (website: https://www.geeksforgeeks.org/program-distance-two-points-earth/)
+    """
+
+    if degrees:
+        lat1 *= np.pi / 180
+        lat2 *= np.pi / 180
+        long1 *= np.pi / 180
+        long2 *= np.pi / 180
+
+    EARTH_RADIUS = 6378.14  # km
+
+    return EARTH_RADIUS * np.arccos(np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(long2 - long1))
 
 
 def show_edgepoints(filename: str = "WorldMapTwo.jpg"):
@@ -120,9 +129,8 @@ def lat_long_on_water(latitude: float, longitude: float, degree: bool = False, f
         plt.plot(col, row, marker="o")
         plt.show()
 
-    return np.array_equal(point, np.array([255, 255, 255]))
+    return np.array_equal(point, WATER)
 
 
 if __name__ == "__main__":
-    # show_edgepoints()
-    lat_long_on_water(np.pi / 2, np.pi, display_on_map=True)
+    show_edgepoints()
