@@ -46,9 +46,6 @@ def create_pca_plot(filename: str, categories: list[str], filter_category: str) 
 
     principal_df[filter_category] = data[filter_category]
 
-    print(data.head())
-    print(principal_df.head())
-
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_xlabel('First Principal Component', fontsize=15)

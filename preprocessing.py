@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 
 from typing import Callable, Any
-
 from datetime import datetime, timedelta
 
+from MapProcessing import lat_long_on_water
 
 # FILENAMES ================================================
 unprocessed_tsunami = "unprocessed_tsunami_data.tsv"
@@ -150,7 +150,6 @@ def process_tsv_into_csv(*,
 
 
 def process_tsunami(tsv_filename: str, csv_filename: str) -> None:
-
     wanted_columns = ["tsunami cause code", "earthquake magnitude", "country", "latitude", "longitude",
                       "water height", "tsunami magnitude"]
 
@@ -172,8 +171,8 @@ def process_tsunami(tsv_filename: str, csv_filename: str) -> None:
                          name_replace=name_replace)
 
 
-def process_earthquake(tsv_filename: str, csv_filename: str) -> None:
-
+def process_earthquake(tsv_filename: str, csv_filename: str,
+                       label_on_sea: bool = True, filter_on_sea: bool = False) -> None:
     wanted_columns = ["magnitude", "intensity", "location name", "latitude", "longitude", "focal depth"]
 
     name_replace = {"mag": "magnitude", "mmi int": "intensity", "focal depth (km)": "focal depth"}
@@ -182,6 +181,19 @@ def process_earthquake(tsv_filename: str, csv_filename: str) -> None:
                          wanted_columns=wanted_columns,
                          add_datetime=True,
                          name_replace=name_replace)
+
+    if label_on_sea:
+        labels = ["latitude", "longitude"]
+        dataframe = pd.read_csv(csv_filename)
+
+        on_sea = [int(lat_long_on_water(float(long), float(lat), degree=True)) for (_, long, lat) in
+                  dataframe[labels].itertuples()]
+        dataframe["on sea"] = on_sea
+
+        if filter_on_sea:
+            dataframe = filter_column(dataframe, "on sea", lambda x: bool(x))
+
+        dataframe.to_csv(csv_filename)
 
 
 def get_earthquake_information_from_tsunami_cause(tsunami_data: pd.DataFrame,
