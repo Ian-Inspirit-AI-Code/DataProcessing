@@ -16,7 +16,6 @@ LAT_PER_GRID = np.pi / NUM_ROWS  # horizontal (radians)
 LONG_PER_PIXEL = LONG_PER_GRID / COLUMN_SIZE
 LAT_PER_PIXEL = LAT_PER_GRID / ROW_SIZE
 
-LAND = np.array([0, 255, 0])  # pure green, 1 alpha
 WATER = np.array([255, 255, 255])  # pure white, 1 alpha
 
 
@@ -33,8 +32,13 @@ def row_col_to_lat_long(row: int, col: int) -> tuple[int, int]:
     return latitude, longitude
 
 
-def lat_long_to_row_col(lat: float, long: float) -> tuple[int, int]:
+def lat_long_to_row_col(lat: float, long: float, degrees: bool = False) -> tuple[int, int]:
     """ Returns the row col of a lattitude longitude coordinate as a tuple"""
+
+    if degrees:
+        lat *= np.pi / 180
+        long *= np.pi / 180
+
     if abs(lat) > np.pi / 2 or abs(long) > np.pi:
         raise ValueError("Exceed latitude longitude limit " + f"{lat=} {long=}")
     row = int((lat / LAT_PER_PIXEL) + IM_HEIGHT // 2)
@@ -75,11 +79,21 @@ def all_points_on_edge(spread: np.ndarray, image: np.ndarray) -> np.ndarray:
     return spread[mask]
 
 
-def find_edgepoints_of_continents(image: np.ndarray, r_num: int = 500, c_num: int = 1000) -> np.ndarray:
-    """ Returns a 2d array containing coordinates of many edgepoints on the map"""
+def find_edgepoints_of_continents(r_num: int = 300, c_num: int = 600, filename: str = "WorldMapTwo.jpg") -> np.ndarray:
+    """ Returns a 2d array containing row/col coordinates of many edgepoints on the map"""
 
+    image = plt.imread(filename)
     distribution = create_uniform_spread(r_num, c_num)
     return all_points_on_edge(distribution, image)
+
+
+def continent_edgepoint_lat_long(r_num: int = 300, c_num: int = 600, filename: str = "WorldMapTwo.jpg") -> np.ndarray:
+    """ Returns a 2d array containing lat_long coordinates of many edgepoints on the map"""
+
+    edges = find_edgepoints_of_continents(r_num, c_num, filename)
+    edges = [row_col_to_lat_long(*coord) for coord in edges]
+
+    return np.array(edges)
 
 
 def dist_lat_long(lat1: float, long1: float, lat2: float, long2: float, degrees=False) -> float:
@@ -87,6 +101,7 @@ def dist_lat_long(lat1: float, long1: float, lat2: float, long2: float, degrees=
 
     Credits for this function go to geeksforgeeks and Aarti Rathi
         (website: https://www.geeksforgeeks.org/program-distance-two-points-earth/)
+    Uses Haversine Algorithm
     """
 
     if degrees:
@@ -103,7 +118,7 @@ def dist_lat_long(lat1: float, long1: float, lat2: float, long2: float, degrees=
 def show_edgepoints(filename: str = "WorldMapTwo.jpg"):
     """ Shows the edgepoints of a map (boundaries between land and sea"""
     arr = image_to_numpy_array(filename)
-    edges = find_edgepoints_of_continents(arr)
+    edges = find_edgepoints_of_continents()
 
     plt.imshow(arr)
     for (x, y) in edges:
@@ -130,6 +145,20 @@ def lat_long_on_water(latitude: float, longitude: float, degree: bool = False, f
         plt.show()
 
     return np.array_equal(point, WATER)
+
+
+def distance_to_land(lattitude: float, longitude: float, edgepoints: np.ndarray, on_water: bool = False,
+                     degrees: bool = False, filename: str = "WorldMapTwo.jpg") -> float:
+    """ Returns the distance to land in kilometers. Returns 0 if it is on land"""
+
+    image = plt.imread(filename)
+    if on_water or not np.array_equal(image[lat_long_to_row_col(lattitude, longitude, degrees)], WATER):
+        return 0
+
+    distances = np.array(list(map(lambda coord: dist_lat_long(*coord, lattitude, longitude),
+                                  list(map(lambda edge: row_col_to_lat_long(*edge), edgepoints)))))
+
+    return np.amin(distances)
 
 
 if __name__ == "__main__":
