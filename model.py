@@ -1,29 +1,45 @@
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn import metrics
 
+from enum import Enum, auto
 
-def train_model(train_data: pd.DataFrame, input_labels: list[str], output_label: str) -> LogisticRegression:
+
+class ModelType(Enum):
+    Logistic = auto()
+    Linear = auto()
+
+
+def train_model(train_data: pd.DataFrame, input_labels: list[str], output_labels: str | list[str],
+                model: ModelType) -> LogisticRegression | LinearRegression:
     """ Returns a trained model that uses the given input labels to output"""
 
-    model = LogisticRegression(max_iter=1000000, solver='newton-cg', C=1)
+    if model is ModelType.Logistic:
+        model = LogisticRegression(max_iter=100000, solver='newton-cg', C=2)
+    elif model is ModelType.Linear:
+        model = LinearRegression()
+    else:
+        raise ValueError(f"Invalid model type. Received {model=}")
+
     x = train_data[input_labels]
-    y = train_data[output_label]
+    y = train_data[output_labels]
 
     model.fit(x, y)
     return model
 
 
-def predict_model(model: LogisticRegression, test_data: pd.DataFrame, input_labels: list[str]):
+def predict_model(model: LogisticRegression | LinearRegression, test_data: pd.DataFrame, input_labels: list[str]):
     """ Returns the predictions the model made"""
     x = test_data[input_labels]
     y_pred = model.predict(x)
+
     return y_pred
 
 
-def evaluate_model(model_predictions: list[int], test_data: pd.DataFrame, output_label: str) -> tuple[..., ...]:
+def evaluate_logistic_model(model_predictions: list[int], test_data: pd.DataFrame,
+                            output_label: str) -> tuple[..., ...]:
     """ Returns stats relating to the performance of the model"""
     y = test_data[output_label]
     accuracy = metrics.accuracy_score(y, model_predictions)
@@ -31,6 +47,11 @@ def evaluate_model(model_predictions: list[int], test_data: pd.DataFrame, output
     recall = metrics.recall_score(y, model_predictions)
 
     return accuracy, precision, recall
+
+
+def evaluate_linear_model(model: LinearRegression, x_test, y_test) -> tuple[..., ...]:
+    """ Evaluates stats relating to the performance of the model"""
+    return model.score(x_test, y_test),
 
 
 def split_dataset(data: pd.DataFrame, test_size: float = 0.3) -> tuple[pd.DataFrame, pd.DataFrame]:
