@@ -1,8 +1,7 @@
 import pandas as pd
 
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn import metrics
+from sklearn import metrics  # type: ignore
 
 from enum import Enum, auto
 
@@ -52,12 +51,3 @@ def evaluate_logistic_model(model_predictions: list[int], test_data: pd.DataFram
 def evaluate_linear_model(model: LinearRegression, x_test, y_test) -> tuple[..., ...]:
     """ Evaluates stats relating to the performance of the model"""
     return model.score(x_test, y_test),
-
-
-def split_dataset(data: pd.DataFrame, test_size: float = 0.3) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """ Splits the dataset into training and testing"""
-
-    if test_size > 0.9 or test_size < 0.1:
-        print(f"Test size is outside of recommended: {test_size=})")
-
-    return train_test_split(data, test_size=test_size, random_state=1)

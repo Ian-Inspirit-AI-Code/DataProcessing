@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import pandas as pd
+import pandas as pd  # type: ignore
 
 
 def show(filename: str, x_label: str, y_labels: list[str]) -> None:

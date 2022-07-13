@@ -1,18 +1,24 @@
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore
 
 from typing import Callable, Any
 from datetime import datetime, timedelta
 from copy import copy
+from sklearn.model_selection import train_test_split  # type: ignore
 
 from MapProcessing import lat_long_on_water, dist_lat_long, distance_to_land, continent_edgepoint_lat_long
 
 # FILENAMES ================================================
-unprocessed_tsunami = "unprocessed_tsunami_data.tsv"
+unprocessed_tsunami: str = "unprocessed_tsunami_data.tsv"
 unprocessed_earthquake = "unprocessed_earthquake_data.tsv"
 
 processed_tsunami = "processed_tsunami_data.csv"
 processed_earthquake = "processed_earthquake_data.csv"
+processed_tsunami_train = "processed_tsunami_data_train.csv"
+processed_tsunami_test = "processed_tsunami_data_test.csv"
+processed_earthquake_train = "processed_earthquake_data_train.csv"
+processed_earthquake_test = "processed_earthquake_data_test.csv"
+
 
 linked = "tsunami_and_earthquake_linked.csv"
 
@@ -100,6 +106,7 @@ def process_tsv_into_csv(*,
                          tsv_filename: str,
                          csv_filename: str,
                          wanted_columns: list[str] = None,
+                         replace_nan: tuple[str, Any] = None,
                          keep_rows_with_empty: bool = False,
                          add_datetime: bool = True,
                          minimum_date: datetime = pd.Timestamp.min,
@@ -126,6 +133,11 @@ def process_tsv_into_csv(*,
         dataframe = change_column_name(dataframe, 'dy', 'day')
         # adding y/m/d to wanted_columns
         wanted_columns += ["year", "month", "day"]
+
+    # replace a nan for a column with the value
+    if replace_nan is not None:
+        column, value = replace_nan
+        dataframe[column] = dataframe[column].fillna(value)
 
     # adding the filtered columns to wanted
     if columns_to_filter is not None:
@@ -185,10 +197,12 @@ def process_earthquake(tsv_filename: str, csv_filename: str, wanted_columns: lis
     process_tsv_into_csv(tsv_filename=tsv_filename, csv_filename=csv_filename,
                          wanted_columns=copy(wanted_columns),
                          add_datetime=True,
-                         name_replace=name_replace)
+                         name_replace=name_replace,
+                         replace_nan=("tsunami id", 0))
 
     dataframe = pd.read_csv(csv_filename)
-
+    print(dataframe.columns)
+    dataframe["caused tsunami"] = dataframe["tsunami id"].apply(lambda x: int(bool(x)))
     if label_on_sea:
         labels = ["latitude", "longitude"]
 
@@ -334,30 +348,44 @@ def get_earthquakes_caused_tsunami(earthquake_filename: str, tsunami_filename: s
         for x in caused_tsunami:
             labels[x] = 1
 
-        earthquake_data["caused tsunami"] = labels
+        earthquake_data["linked tsunami"] = labels
         earthquake_data.to_csv(earthquake_filename)
 
     return tsunami_and_earthquake
 
 
+def split_csv(filename: str, test_size: float = 0.7):
+    """ Reads in a csv and then creates two files with the train and split data"""
+    data = pd.read_csv(filename)
+    train, test = train_test_split(data, test_size=test_size)
+    base_filename = filename.split(".")[0]
+    train.to_csv(base_filename + "_train.csv")
+    test.to_csv(base_filename + "_test.csv")
+
+
 def create_csvs():
     """ Creates all the csv files"""
 
-    wanted_tsunami_columns = ["tsunami cause code", "earthquake magnitude", "latitude", "longitude",
+    wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude",
                               "water height", "tsunami magnitude", "date"]
     tsunami_name_replace = {"maximum water height (m)": "water height", "tsunami magnitude (iida)": "tsunami magnitude"}
+
     wanted_earthquake_columns = ["magnitude", "intensity", "latitude", "longitude", "focal depth", "date", "on sea",
-                                 "distance to land", "caused tsunami"]
-    earthquake_name_replace = {"mag": "magnitude", "mmi int": "intensity", "focal depth (km)": "focal depth"}
+                                 "distance to land", "tsunami id", "caused tsunami"]
+    earthquake_name_replace = {"mag": "magnitude", "mmi int": "intensity", "focal depth (km)": "focal depth",
+                               "tsu": "tsunami id"}
     # process_tsunami(unprocessed_tsunami, processed_tsunami, wanted_tsunami_columns, tsunami_name_replace)
-    # process_earthquake(unprocessed_earthquake, processed_earthquake, wanted_earthquake_columns, earthquake_name_replace)
+    process_earthquake(unprocessed_earthquake, processed_earthquake, wanted_earthquake_columns, earthquake_name_replace)
 
     wanted_linked_columns = []
     linked_name_replace = {}
-    get_earthquakes_caused_tsunami(processed_earthquake, processed_tsunami, linked,
-                                   wanted_linked_columns, linked_name_replace, wanted_earthquake_columns)
+    # get_earthquakes_caused_tsunami(processed_earthquake, processed_tsunami, linked,
+    #                                wanted_linked_columns, linked_name_replace, wanted_earthquake_columns)
 
-    keep_wanted_columns(pd.read_csv(processed_earthquake), wanted_earthquake_columns).to_csv(processed_earthquake)
+    # keep_wanted_columns(pd.read_csv(processed_earthquake), wanted_earthquake_columns).to_csv(processed_earthquake)
+
+    # split_csv(processed_earthquake)
+    split_csv(processed_tsunami)
 
 
 if __name__ == "__main__":
