@@ -263,8 +263,8 @@ def create_csvs():
     """ Creates all the csv files"""
 
     wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude",
-                              "water height", "tsunami magnitude"]
-    tsunami_name_replace = {"maximum water height (m)": "water height", "tsunami magnitude (iida)": "tsunami magnitude"}
+                              "water height"]
+    tsunami_name_replace = {"maximum water height (m)": "water height"}
 
     wanted_earthquake_columns = ["magnitude", "intensity", "latitude", "longitude", "focal depth", "on sea",
                                  "distance to land", "tsunami id", "caused tsunami"]
@@ -278,9 +278,9 @@ def create_csvs():
 
     wanted_earthquake_columns = ["magnitude", "intensity", "latitude", "longitude", "focal depth", "on sea",
                                  "distance to land", "tsunami id"]
-    tsunami_name_replace = {"maxWaterHeight": "water height", "tsMtIi": "tsunami magnitude",
+    tsunami_name_replace = {"maxWaterHeight": "water height",
                             "eqMagMw": "earthquake magnitude"}
-    wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude", "water height", "tsunami magnitude",
+    wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude", "water height",
                               "causeCode"]
     process_linked(processed_earthquake_train, linked_train, wanted_earthquake_columns, wanted_tsunami_columns,
                    tsunami_name_replace)

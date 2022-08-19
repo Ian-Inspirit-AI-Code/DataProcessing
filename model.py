@@ -51,8 +51,11 @@ def evaluate_logistic_model(model_predictions: list[int], test_data: pd.DataFram
     return accuracy, precision, recall, MSE, ASE
 
 
-def evaluate_linear_model(model: LinearRegression, x_test: pd.DataFrame, y_test: pd.DataFrame) -> tuple[..., ...]:
+def evaluate_linear_model(model: LinearRegression, x_test: pd.DataFrame, y_test: pd.DataFrame,
+                          logarithmic: bool = True) -> float:
     """ Evaluates stats relating to the performance of the model"""
+    if not logarithmic:
+        return model.score(x_test, y_test)
     predictions = model.predict(x_test)
     predictions = [10 ** x for x in predictions]
     actuals = [10 ** float(y) for y in y_test.to_numpy()]
