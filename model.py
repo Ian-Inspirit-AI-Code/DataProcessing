@@ -1,5 +1,5 @@
 import pandas as pd
-from numpy import log10
+from numpy import log10, arange
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn import metrics  # type: ignore
@@ -31,43 +31,54 @@ def train_model(train_data: pd.DataFrame, input_labels: list[str], output_labels
     return model
 
 
-def predict_model(model: LogisticRegression | LinearRegression, test_data: pd.DataFrame, input_labels: list[str]):
+def predict_model(model: LogisticRegression | LinearRegression, validation_data: pd.DataFrame, input_labels: list[str]):
     """ Returns the predictions the model made"""
-    x = test_data[input_labels]
+    x = validation_data[input_labels]
     y_pred = model.predict(x)
 
     return y_pred
 
 
-def evaluate_logistic_model(model_predictions: list[int], test_data: pd.DataFrame,
+def predict_logistic(model, validation_data, input_labels, threshold: float = 0.5):
+    x = validation_data[input_labels]
+    y_pred = model.predict_proba(x)[:, 0]
+    return 1 * (y_pred < threshold)
+
+
+def optimal_threshold(model, validation_data, input_labels, output_label) -> float:
+    best = -1
+    out = -1
+    for threshold in arange(0, 1, 0.05):
+        # TODO: penalize false negatives more
+        score = sum(evaluate_logistic_model(
+                predict_logistic(model, validation_data, input_labels, threshold), validation_data, output_label)) / 3
+        if score > best:
+            best = score
+            out = threshold
+    print(out)
+    return out
+
+
+def evaluate_logistic_model(model_predictions: list[int], validation_data: pd.DataFrame,
                             output_label: str) -> tuple[..., ...]:
     """ Returns stats relating to the performance of the model"""
-    y_test = test_data[output_label]
+    y_test = validation_data[output_label]
     accuracy = metrics.accuracy_score(y_test, model_predictions)
     precision = metrics.precision_score(y_test, model_predictions)
     recall = metrics.recall_score(y_test, model_predictions)
-    MSE = sum((yt - yp) ** 2 for (yt, yp) in zip(y_test, test_data[output_label].to_numpy())) / len(y_test)
-    ASE = sum(yt - yp for (yt, yp) in zip(y_test, test_data[output_label].to_numpy())) / len(y_test)
-    return accuracy, precision, recall, MSE, ASE
+    MSE = sum((yt - yp) ** 2 for (yt, yp) in zip(y_test, validation_data[output_label].to_numpy())) / len(y_test)
+    ASE = sum(yt - yp for (yt, yp) in zip(y_test, validation_data[output_label].to_numpy())) / len(y_test)
+    return accuracy, precision, recall
 
 
-def evaluate_linear_model(model: LinearRegression, x_test: pd.DataFrame, y_test: pd.DataFrame,
-                          logarithmic: bool = True) -> float:
+def evaluate_linear_model(model: LinearRegression, x_test: pd.DataFrame, y_test: pd.DataFrame) -> float:
     """ Evaluates stats relating to the performance of the model"""
-    if not logarithmic:
-        return model.score(x_test, y_test)
-    predictions = model.predict(x_test)
-    predictions = [10 ** x for x in predictions]
-    actuals = [10 ** float(y) for y in y_test.to_numpy()]
-    if len(predictions) != len(actuals):
-        raise ValueError(f"Incorrect length: {len(predictions)=} {len(actuals)=}")
-    sum_square_diff = sum((x - y) ** 2 for (x, y) in zip(predictions, actuals))
-    # print(log10(sum_square_diff), model.score(x_test, y_test))
-    return log10(sum_square_diff)
+
+    return model.score(x_test, y_test)
 
 
-def matrix(model, x_test, y_test):
-    y_pred = model.predict(x_test)
+def matrix(model, data, x_label, y_test):
+    y_pred = predict_logistic(model, data, x_label, 0.65)
     labels = ["No Tsunami", "Tsunami"]
     y_pred = [labels[y] for y in y_pred]
     y_test = [labels[y] for y in y_test.to_numpy()]

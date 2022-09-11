@@ -19,9 +19,11 @@ processed_tsunami_train = "processed_tsunami_data_train.csv"
 processed_tsunami_test = "processed_tsunami_data_test.csv"
 processed_earthquake_train = "processed_earthquake_data_train.csv"
 processed_earthquake_test = "processed_earthquake_data_test.csv"
+processed_earthquake_validate = "processed_earthquake_data_validate.csv"
 
 linked_train = "tsunami_and_earthquake_linked_train.csv"
 linked_test = "tsunami_and_earthquake_linked_test.csv"
+linked_validate = "tsunami_and_earthquake_linked_validate.csv"
 
 
 def tsv_to_dataframe(tsv_filename: str) -> pd.DataFrame:
@@ -250,13 +252,15 @@ def process_linked(earthquake_filename: str, linked_filename: str,
     linked.to_csv(linked_filename)
 
 
-def split_csv(filename: str, test_size: float = 0.3):
+def split_csv(filename: str, test_size: float = 0.3, validate_size: float = 0.1):
     """ Reads in a csv and then creates two files with the train and split data"""
     data = pd.read_csv(filename)
     train, test = train_test_split(data, test_size=test_size, random_state=42)
+    train, val = train_test_split(train, test_size=validate_size)
     base_filename = filename.split(".")[0]
     train.to_csv(base_filename + "_train.csv")
     test.to_csv(base_filename + "_test.csv")
+    val.to_csv(base_filename + "_validate.csv")
 
 
 def create_csvs():
@@ -276,17 +280,36 @@ def create_csvs():
     split_csv(processed_earthquake)
     split_csv(processed_tsunami)
 
-    wanted_earthquake_columns = ["magnitude", "intensity", "latitude", "longitude", "focal depth", "on sea",
-                                 "distance to land", "tsunami id"]
-    tsunami_name_replace = {"maxWaterHeight": "water height",
-                            "eqMagMw": "earthquake magnitude"}
-    wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude", "water height",
-                              "causeCode"]
-    process_linked(processed_earthquake_train, linked_train, wanted_earthquake_columns, wanted_tsunami_columns,
-                   tsunami_name_replace)
-    process_linked(processed_earthquake_test, linked_test, wanted_earthquake_columns, wanted_tsunami_columns,
-                   tsunami_name_replace)
+    # wanted_earthquake_columns = ["magnitude", "intensity", "latitude", "longitude", "focal depth", "on sea",
+    #                              "distance to land", "tsunami id"]
+    # tsunami_name_replace = {"maxWaterHeight": "water height",
+    #                         "eqMagMw": "earthquake magnitude"}
+    # wanted_tsunami_columns = ["earthquake magnitude", "latitude", "longitude", "water height",
+    #                           "causeCode"]
+    # process_linked(processed_earthquake_train, linked_train, wanted_earthquake_columns, wanted_tsunami_columns,
+    #                tsunami_name_replace)
+    # process_linked(processed_earthquake_test, linked_test, wanted_earthquake_columns, wanted_tsunami_columns,
+    #                tsunami_name_replace)
+
+
+def blah():
+    train = pd.read_csv("tsunami_and_earthquake_linked_train.csv")
+    test = pd.read_csv("tsunami_and_earthquake_linked_test.csv")
+    validate = pd.read_csv("tsunami_and_earthquake_linked_validate.csv")
+
+    data = pd.concat((train, test, validate))
+
+    test_size = 0.3
+
+    filename = "tsunami_and_earthquake_linked"
+    train, test = train_test_split(data, test_size=test_size, random_state=42)
+
+    base_filename = filename.split(".")[0]
+    train.to_csv(base_filename + "_train.csv")
+    test.to_csv(base_filename + "_test.csv")
+
 
 
 if __name__ == "__main__":
-    create_csvs()
+    # create_csvs()
+    blah()
